@@ -54,13 +54,37 @@ The engine uses a sophisticated multi-factor evaluation:
 pip install -r requirements.txt
 ```
 
-2. Configure your Lichess token:
-   - Get a token from https://lichess.org/account/oauth/token
-   - Edit `config.yml` and replace `PASTE_YOUR_LICHESS_TOKEN_HERE` with your token
+2. Create your configuration file:
+```bash
+cp config.yml.default config.yml
+```
 
-3. (Optional) Add opening books and tablebases:
+3. Configure your Lichess token:
+   - Get a token from https://lichess.org/account/oauth/token (requires Bot account)
+   - Edit `config.yml` and replace the token value with your actual token
+   - Change `engine.name` to `GrandmasterEngine`
+   - Change `engine.protocol` to `homemade`
+
+4. (Optional) Add opening books and tablebases:
    - Place Polyglot opening books in `./engines/book.bin`
    - Place Syzygy tablebases in `./engines/syzygy/`
+
+## Quick Start Configuration
+
+Here's a minimal config.yml to get started:
+
+```yaml
+token: "YOUR_LICHESS_TOKEN_HERE"
+url: "https://lichess.org/"
+
+engine:
+  dir: "./"
+  name: "GrandmasterEngine"
+  protocol: "homemade"
+  ponder: true
+  
+  # ... rest of configuration ...
+```
 
 ## Usage
 
@@ -118,10 +142,31 @@ The main configuration is in `config.yml`:
 
 - `homemade.py` - Contains the GrandmasterEngine implementation
 - `lichess-bot.py` - Main entry point for the bot
-- `config.yml` - Configuration file
+- `config.yml` - Configuration file (create from config.yml.default)
 - `lib/` - Supporting library code (engine wrapper, Lichess API, etc.)
 - `test_grandmaster_engine.py` - Test suite for the engine
+- `test_bot/` - Test compatibility module
+
+## How It Works
+
+When you run the lichess-bot file, here's what happens:
+
+1. **Initialization**: The bot loads the GrandmasterEngine class from `homemade.py`
+2. **Connection**: Connects to Lichess using your API token
+3. **Game Handling**: For each move:
+   - First checks opening book (if in opening phase and book available)
+   - Then checks endgame tablebases (if few pieces and tablebases available)
+   - Otherwise performs deep search using minimax with alpha-beta pruning
+4. **Move Selection**: Returns the best move found
+
+The engine implements all five requested features:
+1. ✅ Minimax with alpha-beta pruning
+2. ✅ Sophisticated evaluation function
+3. ✅ Transposition table
+4. ✅ Opening book support
+5. ✅ Endgame tablebase support
 
 ## License
 
 See LICENSE file for details.
+
