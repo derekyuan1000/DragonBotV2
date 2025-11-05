@@ -617,19 +617,21 @@ test_suffix = "-for-lichess-bot-testing-only"
 
 def get_homemade_engine(name: str) -> type[MinimalEngine]:
     """
-    Get the homemade engine with name `name`. e.g. If `name` is `RandomMove` then we will return `homemade.RandomMove`.
+    Get the homemade engine with name `name`. e.g. If `name` is `DragonBot` then we will return `engines.dragonbot.DragonBot`.
 
-    :param name: The name of the homemade engine.
-    :return: The engine with this name.
+    :param name: The name of the homemade engine (class name or filename like dragonbot.py).
+    :return: The engine class with this name.
     """
-    import homemade
-    from test_bot import homemade as test_homemade
-    engine: type[MinimalEngine]
-    if name.endswith(test_suffix):  # Test only.
-        engine = getattr(test_homemade, name.removesuffix(test_suffix))
-    else:
-        engine = getattr(homemade, name)
-    return engine
+    from engines import dragonbot
+    import inspect
+
+    # Find the class in the dragonbot module that is a subclass of MinimalEngine
+    for member_name, member_obj in inspect.getmembers(dragonbot):
+        if inspect.isclass(member_obj) and issubclass(member_obj, MinimalEngine) and member_obj is not MinimalEngine:
+            return member_obj
+
+    # If no class is found, raise an error.
+    raise AttributeError(f"Could not find a MinimalEngine subclass in the 'engines.dragonbot' module from name '{name}'.")
 
 
 def move_time(board: chess.Board,
@@ -1102,15 +1104,11 @@ def get_chessdb_egtb_move(li: lichess.Lichess, game: model.Game, board: chess.Bo
     """
     def score_to_wdl(score: int) -> int:
         return piecewise_function([(-20000, "e", -2),
-                                   (0, "e", -1),
-                                   (0, "i", 0),
-                                   (20000, "i", 1)], 2, score)
+                                   (0, "e" -1), (0, "i", 0), (20000, "i", 1)], 2, score)
 
     def score_to_dtz(score: int) -> int:
         return piecewise_function([(-20000, "e", -30000 - score),
-                                   (0, "e", -20000 - score),
-                                   (0, "i", 0),
-                                   (20000, "i", 20000 - score)], 30000 - score, score)
+                                   (0, "e", -20000 - score), (0, "i", 0), (20000, "i", 20000 - score)], 30000 - score, score)
 
     action = "querypv" if quality == "best" else "queryall"
     data = li.online_book_get("https://www.chessdb.cn/cdb.php",
