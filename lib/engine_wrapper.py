@@ -631,6 +631,48 @@ def get_homemade_engine(name: str) -> type[MinimalEngine]:
             return member_obj
 
     # If no class is found, raise an error.
+    if hasattr(dragonbot, "search_alpha_beta") and callable(getattr(dragonbot, "search_alpha_beta")):
+        from engines.opening import opening_move
+        from engines.time_manager import calculate_time_allocation
+        search_fn = getattr(dragonbot, "search_alpha_beta")
+        class FunctionEngine(MinimalEngine):
+            def __init__(self, commands: COMMANDS_TYPE, options: OPTIONS_GO_EGTB_TYPE, stderr: int | None,
+                         draw_or_resign: Configuration, game: model.Game | None = None, **popen_args: str) -> None:
+                super().__init__(commands, options, stderr, draw_or_resign, game, name="DragonBot")
+                self.max_depth: int = 20
+                self.max_nodes: int | None = None
+                self.options_store: dict[str, Any] = dict(options)
+
+            def notify(self, method_name: str, *args: ENGINE_INPUT_ARGS_TYPE, **kwargs: ENGINE_INPUT_KWARGS_TYPE) -> Any:
+                if method_name == "configure":
+                    opts = args[0] if args else kwargs
+                    if isinstance(opts, dict):
+                        self.options_store.update(opts)
+                        depth = self.options_store.get("Depth")
+                        if isinstance(depth, int) and depth > 0:
+                            self.max_depth = depth
+                        nodes = self.options_store.get("Nodes")
+                        if isinstance(nodes, int) and nodes > 0:
+                            self.max_nodes = nodes
+                    return None
+                if method_name in ("ping", "close", "quit"):
+                    return None
+                if method_name == "send_game_result":
+                    return None
+                return None
+
+            def search(self, board: chess.Board, time_limit: chess.engine.Limit, ponder: bool, draw_offered: bool,
+                       root_moves: MOVE) -> chess.engine.PlayResult:
+                early = opening_move(board, self.options_store)
+                if early is not None:
+                    m, info = early
+                    return chess.engine.PlayResult(m, None, info)
+                allocated_time, adaptive_max_depth = calculate_time_allocation(board, time_limit, self.max_depth)
+                allowed_root = root_moves if isinstance(root_moves, list) else None
+                move, info = search_fn(board, allocated_time, adaptive_max_depth, allowed_root)
+                return chess.engine.PlayResult(move, None, info)
+        return FunctionEngine
+
     raise AttributeError(f"Could not find a MinimalEngine subclass in the 'engines.dragonbot' module from name '{name}'.")
 
 
