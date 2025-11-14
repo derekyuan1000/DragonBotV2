@@ -1,5 +1,6 @@
 *.yml
 **/__pycache__
+*engines/syzygy
 lichess_bot_auto_logs/*
 .vscode/*
 .vs/*

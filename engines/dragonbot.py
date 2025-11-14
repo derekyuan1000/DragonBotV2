@@ -7,7 +7,13 @@ import chess.engine
 from engines.eval import evaluate
 
 
+_last_pv: List[chess.Move] = []
+_last_position_fen: Optional[str] = None
+
+
 def search_alpha_beta(board: chess.Board, time_budget: float, max_depth: int, allowed_root: Optional[List[chess.Move]] = None) -> Tuple[Optional[chess.Move], chess.engine.InfoDict]:
+    global _last_pv, _last_position_fen
+
     INF = 10_000_000
     MATE_SCORE = 1_000_000
     start_time = time.perf_counter()
@@ -20,6 +26,23 @@ def search_alpha_beta(board: chess.Board, time_budget: float, max_depth: int, al
     killer_moves: Dict[int, List[chess.Move]] = {}
     history_heuristic: Dict[Tuple[bool, int, int], int] = {}
     counter_moves: Dict[Tuple[Optional[int], Optional[int]], chess.Move] = {}
+
+    pv_continuation_depth = 0
+    if _last_position_fen is not None and len(_last_pv) >= 2:
+        try:
+            test_board = chess.Board(_last_position_fen)
+            if len(test_board.move_stack) < len(board.move_stack):
+                our_move = _last_pv[0]
+                expected_opponent_move = _last_pv[1]
+                test_board.push(our_move)
+                if test_board.fen() == board.fen():
+                    print(f"[PV Hit] Opponent played expected move: {expected_opponent_move}")
+                    remaining_pv = _last_pv[1:]
+                    pv_continuation_depth = len(remaining_pv)
+                    print(f"[PV Hit] Continuing from PV with {pv_continuation_depth} moves ahead, boosting depth by {min(pv_continuation_depth, 3)}")
+                    max_depth += min(pv_continuation_depth, 3)
+        except Exception:
+            pass
 
     def time_up() -> bool:
         nonlocal stop
@@ -324,6 +347,10 @@ def search_alpha_beta(board: chess.Board, time_budget: float, max_depth: int, al
     if best_move is None:
         mv = legal_moves_list if allowed_set is None else [m for m in legal_moves_list if m in allowed_set]
         best_move = random.choice(mv) if mv else None
+
+    _last_pv = pv.copy() if pv else []
+    _last_position_fen = board.fen()
+
     info: chess.engine.InfoDict = {
         "string": "lichess-bot-source:Engine",
         "depth": last_depth,

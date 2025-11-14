@@ -1,6 +1,7 @@
 """Communication with APIs."""
 import json
 import requests
+import urllib3
 from urllib.parse import urljoin
 from requests.exceptions import ConnectionError as RequestsConnectionError, HTTPError, ReadTimeout
 from http.client import RemoteDisconnected
@@ -15,6 +16,9 @@ from typing import cast
 import chess.engine
 from lib.lichess_types import (UserProfileType, REQUESTS_PAYLOAD_TYPE, GameType, PublicDataType, OnlineType,
                        ChallengeType, TOKEN_TESTS_TYPE, BackoffDetails)
+
+# Disable SSL warnings when SSL verification is disabled
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 ENDPOINTS = {
@@ -140,7 +144,9 @@ class Lichess:
         self.baseUrl = url
         self.session = requests.Session()
         self.session.headers.update(self.header)
+        self.session.verify = False  # Disable SSL verification to handle self-signed certificates
         self.other_session = requests.Session()
+        self.other_session.verify = False  # Disable SSL verification for other_session as well
         self.set_user_agent("?")
         self.logging_level = logging_level
         self.max_retries = max_retries
